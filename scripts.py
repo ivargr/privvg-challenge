@@ -3,24 +3,45 @@ import bionumpy as bnp
 import numpy as np
 import npstructures as nps
 from shared_memory_wrapper import from_file, to_file
+from typing import List
+import typer
+app = typer.Typer()
+
+def get_sample_names():
+    with open("sample.names") as f:
+        return [l.strip() for l in f]
 
 
-def get_sample_kmers(sample_id):
-    f = bnp.open("samples/" + sample_id + ".fa.gz")
+@app.command()
+def get_sample_kmers(input_fasta, output):
+    f = bnp.open(input_fasta)
     chunk = f.read()
     kmers = bnp.kmers.fast_hash(bnp.as_encoded_array(chunk.sequence, bnp.DNAEncoding), 31).ravel()
-    print(kmers)
-    return kmers
+    np.save(output, kmers)
 
 
-def get_all_kmers(sample_names):
+@app.command()
+def get_unique_kmers_not_on_linear_ref(input_file, linear_ref_kmer_file, output_file):
+    linear_ref_kmers = np.load(linear_ref_kmer_file)
+    print("Making counter")
+    unique_linear_ref_kmers = nps.HashSet(np.unique(linear_ref_kmers), mod=200000033)
+    kmers = np.load(input_file)
+    unique, counts = np.unique(kmers, return_counts=True)
+    unique_kmers = unique[counts == 1]
+    print("%s has %d kmers with frequency 1" % (input_file, len(unique_kmers)))
+    unique_kmers = unique_kmers[unique_linear_ref_kmers.contains(unique_kmers) == False]
+    print("N kmers left after filtering with linear ref: %d" % len(unique_kmers))
+    np.save(output_file, unique_kmers)
 
-    for sample_name in sample_names:
+
+def get_all_kmers():
+    for sample_name in get_sample_names():
         print(sample_name)
         kmers = get_sample_kmers(sample_name)
-        np.save("samples/" + sample_name + ".kmers", kmers)
+        np.save(sample_name + ".kmers", kmers)
 
 
+"""
 def merge_all_kmers(sample_names, out_file="all_kmers"):
     kmers = (np.load("samples/" + sample_name + ".kmers.npy") for sample_name in sample_names)
     all = []
@@ -30,16 +51,20 @@ def merge_all_kmers(sample_names, out_file="all_kmers"):
 
     all = np.concatenate(all)
     np.save(out_file, all)
+"""
 
 
-def find_unique_kmers(sample_names):
+
+"""
+def find_unique_kmers():
+    sample_names = get_sample_names()
     # ignore kmers on linear ref
-    linear_ref_kmers = np.load("samples/chm13.kmers.npy")
+    linear_ref_kmers = np.load("chm13.kmers.npy")
     print("Making counter")
     unique_linear_ref_kmers = nps.HashSet(np.unique(linear_ref_kmers), mod=200000033)
 
     for sample_name in sample_names:
-        kmers = np.load("samples/" + sample_name + ".kmers.npy")
+        kmers = np.load(sample_name + ".kmers.npy")
         unique, counts = np.unique(kmers, return_counts=True)
         unique_kmers = unique[counts == 1]
         print("%s has %d kmers with frequency 1" % (sample_name, len(unique_kmers)))
@@ -47,9 +72,10 @@ def find_unique_kmers(sample_names):
         #if sample_name != "chm13":
         unique_kmers = unique_kmers[unique_linear_ref_kmers.contains(unique_kmers) == False]
         print("N kmers left after filtering with linear ref: %d" % len(unique_kmers))
-        np.save("samples/" + sample_name + ".unique_kmers", unique_kmers)
+        np.save(sample_name + ".unique_kmers", unique_kmers)
+"""
 
-
+"""
 def merge_all_unique_sample_kmers(sample_names):
     all = []
     for i, sample_name in enumerate(sample_names):
@@ -59,13 +85,15 @@ def merge_all_unique_sample_kmers(sample_names):
     all = np.concatenate(all)
     print("%d kmers in total" % len(all))
     np.save("all_unique_kmers.npy", all)
+"""
 
 
-def merge_all_unique_sample_kmers2(sample_names):
+@app.command()
+def merge_all_unique_sample_kmers(output_file: str, input_files: List[str]):
     current = None
-    for i, sample_name in enumerate(sample_names):
-        print(i)
-        new_kmers = np.load("samples/" + sample_name + ".unique_kmers.npy")
+    for i, sample_file_name in enumerate(input_files):
+        print(i, sample_file_name)
+        new_kmers = np.load(sample_file_name)
         if current is None:
             current = new_kmers
         else:
@@ -76,7 +104,8 @@ def merge_all_unique_sample_kmers2(sample_names):
             print("Found %d new kmers to add" % len(new_to_add))
             current = np.concatenate([current, new_to_add])
 
-    np.save("all_unique_kmers_v2.npy", current)
+    np.save(output_file, current)
+    print("Saved to %s" % output_file)
 
 
 def create_marker_kmers(max_frequency=6):
@@ -126,20 +155,22 @@ def find_unique_node_kmers(gfa_file_name, all_graph_kmers):
                 window_size=31)
 
 
-def count_all_unique_kmers(sample_names):
-    all_unique = np.load("all_unique_kmers_v2.npy")
+@app.command()
+def count_all_unique_kmers(out_file_name, unique_kmers, sample_kmer_files: List[str]):
+    all_unique = np.load(unique_kmers)
     print("Making counter")
     counter = nps.Counter(all_unique, mod=200000033)
-    for i, sample_name in enumerate(sample_names):
-        print(i, sample_name)
-        sample_kmers = np.load("samples/" + sample_name + ".kmers.npy")
+    for i, sample_kmers in enumerate(sample_kmer_files):
+        print(i, sample_kmers)
+        sample_kmers = np.load(sample_kmers)
         counter.count(sample_kmers)
 
-    to_file(counter, "kmer_counts")
+    to_file(counter, out_file_name)
 
 
 if __name__ == "__main__":
-    sample_names = [l.strip() for l in open("sample.names")]
+    app()
+    #sample_names = [l.strip() for l in open("sample.names")]
     #get_sample_kmers("test50k")
 
 
@@ -150,4 +181,4 @@ if __name__ == "__main__":
 
     # count how many times each kmer occurs in any individual
     # we will not count kmers occuring on lineawr ref since these are not in counte
-    count_all_unique_kmers(sample_names)
+    #count_all_unique_kmers(sample_names)
