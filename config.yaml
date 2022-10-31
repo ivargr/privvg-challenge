@@ -3,3 +3,4 @@ datasets:
   test:
     #individuals: "chm13,grch38,individual0,individual1,individual2,individual3,individual4,individual5,individual6,individual7,individual8,individual9"
     individuals: "chm13,grch38,individual0,individual1,individual2,individual3,individual4,individual5,individual6,individual7,individual8,individual9,individual10,individual11,individual12,individual13,individual14,individual15,individual16,individual17,individual18,individual19,individual20,individual21,individual22,individual23,individual24,individual25,individual26,individual27,individual28,individual29"
+    max_node_id: 20000

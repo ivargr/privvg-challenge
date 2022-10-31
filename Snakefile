@@ -253,7 +253,7 @@ rule get_priv_node_counts:
 rule predict:
     input:
         counts="data/{dataset}/node_counts.npy",
-        priv_counts="data/{dataset}/priv_{i}_node_counts.npy",
+        priv_counts="data/{dataset}/priv_{i}_node_counts_from_alignments.npy",
         sample_names="data/{dataset}/sample_names.txt"
     output:
         prediction="data/{dataset}/prediction_{i}.npy"
@@ -278,3 +278,39 @@ rule predict:
         print(sample_names[np.argmax(prediction)])
 
         np.save(output.prediction, np.argmax(prediction))
+
+
+rule align_priv_paths_to_original_graph:
+    output:
+        alignments="data/{dataset}/{i,\d+}_alignments.gaf"
+    input:
+        graph="data/{dataset}/graph.gfa",
+        haplotype_sequences="data/{dataset}/{i}.fa.gz"
+    conda:
+        "envs/graphaligner.yml"
+    shell:
+        "GraphAligner -g {input.graph} -f {input.haplotype_sequences} -a {output.alignments} -x vg"
+
+
+rule get_priv_node_counts_from_alignments:
+    input:
+        alignments="data/{dataset}/{i}_alignments.gaf"
+    output:
+        counts="data/{dataset}/priv_{i}_node_counts_from_alignments.npy"
+    run:
+        import re
+        all_nodes = []
+        max_node_id = config["datasets"][wildcards.dataset]["max_node_id"]
+
+        for line in open(input.alignments):
+            nodes = line.split()[5]
+            regex = r"(<|>)(\d+)"
+            matches = re.finditer(regex, nodes)
+            nodes = [m.groups() for m in matches]
+            nodes = [int(node) if dir == ">" else int(node)+max_node_id for dir, node in nodes]
+            print()
+            print(nodes)
+            print(line.split()[5])
+            all_nodes.extend(nodes)
+
+        np.save(output.counts, np.bincount(np.array(all_nodes).astype(np.int64)))

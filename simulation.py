@@ -67,11 +67,11 @@ def simulate_gfa(n_variants=100, n_individuals=44, out_file_name="graph.gfa"):
             f.write("S\t%d\t%s\n" % node)
 
         for link in links:
-            f.write("L\t%d\t+\t%d\t+\t+0M\n" % link)
+            f.write("L\t%d\t+\t%d\t+\t0M\n" % link)
 
         for path_id, path in paths.items():
             path = ','.join([str(node) + "+" for node in path])
-            f.write("P\t%s\t%s\n" % (path_id, path))
+            f.write("P\t%s\t%s\t*\n" % (path_id, path))
 
     print("Sample names:")
     print(",".join(["chm13", "grch38"] + ["individual" + str(i) for i in range(n_individuals)]))
