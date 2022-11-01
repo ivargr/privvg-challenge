@@ -1,13 +1,19 @@
 import bionumpy as bnp
 import numpy as np
+import random
 from shared_memory_wrapper import from_file, to_file
 import npstructures as nps
+np.random.seed(1)
+random.seed(1)
 
 configfile: "config.yaml"
 
 
 rule all:
     input:
+        "data/test/marker_kmers.npy",
+        "data/test/marker_kmer_counts.npy",
+        "data/test/priv_1_marker_kmer_counts.npy",
         "data/test/node_counts.npy",
         "data/test/priv_1_node_counts.npy",
         #"data/test/priv_1_marker_kmer_counts.npy",
@@ -38,6 +44,7 @@ rule get_paths:
         "odgi paths -i {input} -L > {output}"
 
 
+"""
 rule get_sample_names:
     output:
         "data/{dataset}/sample_names.txt"
@@ -45,6 +52,7 @@ rule get_sample_names:
         "data/{dataset}/paths.txt"
     shell:
         "cut -d# -f 1 {input} | sort | uniq > {output}"
+"""
 
 
 rule get_graph_paths_as_fasta:
@@ -124,7 +132,7 @@ rule get_marker_kmers:
     run:
         counter = from_file(input.counter)
         kmers = np.load(input.sample_kmers)
-        markers = kmers[(counter[kmers] < 15) & (counter[kmers] > 3)]
+        markers = kmers[(counter[kmers] < 8) & (counter[kmers] > 2)]
         print("Found ", len(markers), "marker kmers")
         np.save(output.marker_kmers, markers)
 
@@ -154,14 +162,21 @@ rule get_sample_counts_for_marker_kmers:
 
 
 rule get_random_individuals_to_be_removed:
-    input:
-        "data/{dataset}/paths.txt"
     output:
-        "data/{dataset}/random_individuals.txt"
-    shell:
-        """
-        cut -d "#" -f 1 {input} | sort | uniq | grep -v "grch38" | grep -v "chm13" | shuf | head -n 6 > {output}
-        """
+        random_individuals="data/{dataset}/random_individuals.txt"
+    #shell:
+    #    """
+    #    cut -d "#" -f 1 {input} | sort | uniq | grep -v "grch38" | grep -v "chm13" | shuf | head -n 6 > {output}
+    #    """
+    run:
+        sample_names = config["datasets"][wildcards.dataset]["individuals"].split(",")
+        sample_names.remove("grch38")
+        sample_names.remove("chm13")
+        random.shuffle(sample_names)
+        print(sample_names)
+        with open(output.random_individuals, "w") as f:
+            f.write("\n".join(sample_names))
+
 
 
 rule make_priv_graph:
@@ -280,6 +295,61 @@ rule predict:
         np.save(output.prediction, np.argmax(prediction))
 
 
+rule predict_with_kmers:
+    input:
+        counts="data/{dataset}/marker_kmer_counts.npy",
+        priv_counts="data/{dataset}/priv_{i}_marker_kmer_counts.npy",
+        sample_names="data/{dataset}/sample_names.txt"
+    output:
+        prediction="data/{dataset}/prediction_{i,\d+}_with_kmers.txt"
+
+    run:
+        sample_names={i: line.strip() for i, line in enumerate(open(input.sample_names).readlines())}
+        counts = np.load(input.counts)
+        priv_counts = np.load(input.priv_counts)
+        lower_than_expected = priv_counts == 0
+
+        scores = np.sum((counts >= 1) * lower_than_expected,axis=-1) / np.sum((counts > 0), axis=-1)
+        scores[0] = 0  # never predict chm13
+
+        predicted_individual = sample_names[np.argmax(scores)]
+        print(scores)
+        print(np.argmax(scores))
+        print(sample_names[np.argmax(scores)])
+
+        with open(output.prediction, "w") as f:
+            f.write("%s\n" % predicted_individual)
+
+
+
+def all_predictions(wildcards):
+    n_individuals = len(config["datasets"][wildcards.dataset]["individuals"].split(","))-2
+    return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_with_kmers.txt"
+            for i in range(1, n_individuals+1)]
+
+
+rule predict_all:
+    input:
+        "data/{dataset}/random_individuals.txt",
+        all_predictions
+    output:
+        "data/{dataset}/all_predictions.txt"
+    run:
+        truth = [line.strip() for line in open(input[0]).readlines()]
+        predicted = [open(name).read().strip() for name in input[1:]]
+
+        print(truth, len(truth))
+
+        with open(output[0], "w") as f:
+            n_correct = 0
+            for truth_individual, predicted in zip(truth, predicted):
+                if truth_individual == predicted:
+                    n_correct += 1
+                f.write("%s,%s\n" % (truth_individual, predicted))
+
+        print("N correct: %d/%d" % (n_correct, len(truth)))
+
+
 rule align_priv_paths_to_original_graph:
     output:
         alignments="data/{dataset}/{i,\d+}_alignments.gaf"
@@ -308,9 +378,9 @@ rule get_priv_node_counts_from_alignments:
             matches = re.finditer(regex, nodes)
             nodes = [m.groups() for m in matches]
             nodes = [int(node) if dir == ">" else int(node)+max_node_id for dir, node in nodes]
-            print()
-            print(nodes)
-            print(line.split()[5])
+            #print()
+            #print(nodes)
+            #print(line.split()[5])
             all_nodes.extend(nodes)
 
         np.save(output.counts, np.bincount(np.array(all_nodes).astype(np.int64)))
