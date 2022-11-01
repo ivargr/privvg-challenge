@@ -181,9 +181,9 @@ rule get_random_individuals_to_be_removed:
 
 rule make_priv_graph:
     output:
-        graph="data/{dataset}/{i,\d+}.og",
-        sequences="data/{dataset}/{i,\d+}.fa.gz",
-        gfa="data/{dataset}/{i,\d+}.gfa"
+        graph="data/{dataset}/{i,\d+}_e{epsilon}.og",
+        sequences="data/{dataset}/{i,\d+}_e{epsilon}.fa.gz",
+        gfa="data/{dataset}/{i,\d+}_e{epsilon}.gfa"
     input:
         random_individuals="data/{dataset}/random_individuals.txt",
         paths="data/{dataset}/paths.txt",
@@ -196,7 +196,7 @@ rule make_priv_graph:
         """
         cat {input.paths} | grep -v "^$INDIVIDUAL#" > data/{wildcards.dataset}/keep.{wildcards.i}
         odgi paths -i {input.graph} -K data/{wildcards.dataset}/keep.{wildcards.i} -o - \
-          | odgi priv -i - -d 30 -e 0.01 -c 3 -b $target_haplotype_length -t 16 -P -o {output.graph}
+          | odgi priv -i - -d 30 -e {wildcards.epsilon} -c 3 -b $target_haplotype_length -t 16 -P -o {output.graph}
         odgi paths -i {output.graph} -f | bgzip -@ 48 > {output.sequences}
         odgi view -i {output.graph} -g  > {output.gfa}
         """
@@ -205,9 +205,9 @@ rule make_priv_graph:
 
 rule count_marker_kmers_in_priv_graph:
     output:
-        counts="data/{dataset}/priv_{i}_marker_kmer_counts.npy"
+        counts="data/{dataset}/priv_{i}_e{epsilon}_marker_kmer_counts.npy"
     input:
-        sequences="data/{dataset}/{i,\d+}.fa.gz",
+        sequences="data/{dataset}/{i,\d+}_e{epsilon}.fa.gz",
         marker_kmers="data/{dataset}/marker_kmers.npy"
     run:
         marker_kmers = np.load(input.marker_kmers)
@@ -298,10 +298,10 @@ rule predict:
 rule predict_with_kmers:
     input:
         counts="data/{dataset}/marker_kmer_counts.npy",
-        priv_counts="data/{dataset}/priv_{i}_marker_kmer_counts.npy",
+        priv_counts="data/{dataset}/priv_{i}_e{epsilon}_marker_kmer_counts.npy",
         sample_names="data/{dataset}/sample_names.txt"
     output:
-        prediction="data/{dataset}/prediction_{i,\d+}_with_kmers.txt"
+        prediction="data/{dataset}/prediction_{i,\d+}_e{epsilon}_with_kmers.txt"
 
     run:
         sample_names={i: line.strip() for i, line in enumerate(open(input.sample_names).readlines())}
@@ -324,7 +324,7 @@ rule predict_with_kmers:
 
 def all_predictions(wildcards):
     n_individuals = len(config["datasets"][wildcards.dataset]["individuals"].split(","))-2
-    return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_with_kmers.txt"
+    return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
 
 
@@ -333,7 +333,8 @@ rule predict_all:
         "data/{dataset}/random_individuals.txt",
         all_predictions
     output:
-        "data/{dataset}/all_predictions.txt"
+        "data/{dataset}/all_predictions_e{epsilon}.txt",
+        "data/{dataset}/accuracy_e{epsilon}.txt",
     run:
         truth = [line.strip() for line in open(input[0]).readlines()]
         predicted = [open(name).read().strip() for name in input[1:]]
@@ -347,7 +348,11 @@ rule predict_all:
                     n_correct += 1
                 f.write("%s,%s\n" % (truth_individual, predicted))
 
+        accuracy = n_correct / len(truth)
         print("N correct: %d/%d" % (n_correct, len(truth)))
+
+        with open(output[1], "w") as f:
+            f.write("%.5f\n"  % accuracy)
 
 
 rule align_priv_paths_to_original_graph:
