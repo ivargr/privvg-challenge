@@ -1,0 +1,16 @@
+*.gfa
+*.gaf
+*.idea
+*.npz
+*.npy
+*.xg
+*.og
+*.txt
+*.names
+*.gz
+*.vg
+*.zst
+*.swp
+*.fai
+__pycache__
+*.fa
