@@ -10,8 +10,8 @@ We believe the following is the solution to the challenge:
 ...
 ```
 ## Overview of our solution
-* Assuming we have an original non-private graph `A` and an epsilon-differentially private graph `B` which is created by removing an unknown individual `i` from `A`. Both graphs contain paths (in the challenge we only observe the sequences of paths in B). 
-* We hypothesise that if something is wrong with the privvg-implementation, then for nodes covered by the individual `i` in `A`, we would observe lower than "expected" coverage of paths over these nodes in `B`. What is expected is a bit unclear due to the exponential mechanism, but for simplicity we could look at nodes with zero coverage (no paths) in `B`. If an individual is removed, then for nodes in `A` that the indivdual has, and that few other individual have, we would more often (than if the individual was not removed) see zero coverage on that node in `B`.
+* Assuming we have an original non-private graph `A` and an epsilon-differentially private graph `B` which is created after removing an unknown individual `i` from `A`. Both graphs contain paths (in the challenge we only observe the sequences of the paths of B). 
+* We hypothesise that if something is wrong with the privvg-implementation, then for nodes covered by the individual `i` in `A`, we would be able to observe lower than "expected" coverage of paths over these nodes in `B`. What is expected is a bit unclear due to the exponential mechanism, but for simplicity we could look at nodes with zero coverage (no paths) in `B`. If an individual is removed, then for nodes in `A` that the indivdual has, and that few other individual have, we would more often (than if the individual was not removed) see zero coverage on that node in `B`.
 * We don't have access to the graph `B`, but we have access to the error-free sampled path sequences. This means that we should be able to quite easily reconstruct `B` by mapping these path sequences to `A`.
 
 
@@ -22,7 +22,7 @@ A problem with mapping reads back to `A` to look at node coverage is that mappin
 
 We use [BioNumpy](https://github.com/bionumpy/bionumpy) to first scan all kmers in the original graph `A`, and pick out "*marker kmers*", which are kmers that occur few times and that few indiviudals have in `A`. We then count how many times these kmers occur in `B`, and ...
 
-On our simulated data, this approach gave a 100% prediction accuracy with `epsilon=0.01` on a graph with `5000 variants` with random sequences. The accuracy decreased with fewer nodes, but 5000 nodes (which is not much) seemed to be enough to break privacy, so something seems to be wrong with the implementation/concept of privvg. 
+On simulated data, this approach gave a 100% prediction accuracy with `epsilon=0.01` on a graph with `5000 variants` with random sequences. The accuracy decreased with fewer nodes, but 5000 nodes (which is not much) seemed to be enough to break privacy, so something seems to be wrong with the implementation/concept of privvg. 
 
 
 We also experimented with different epsilon-values, but were confused on the role of epsilon here (see notes further down). In general, lower epsilon did not make it more difficult to get correct predictions.

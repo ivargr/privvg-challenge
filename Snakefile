@@ -27,7 +27,8 @@ def get_path_length_for_odgi(wildcards):
         return 10000
     else:
         n_variants = int(wildcards.dataset.replace("test", ""))
-        return int(n_variants / 10)
+        return 500
+        return min(250, int(n_variants / 10))  # no more than 1000 to be safe, odgi can crash if too long
 
 
 rule all:
@@ -359,8 +360,8 @@ rule predict_with_kmers:
 
 
 def all_predictions(wildcards):
-    n_individuals = len(get_sample_names(wildcards.dataset))-2
-    #n_individuals = 8
+    #n_individuals = len(get_sample_names(wildcards.dataset))-2
+    n_individuals = 10
     return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
 
