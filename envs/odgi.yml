@@ -2,5 +2,5 @@ channels:
   - bioconda
 
 dependencies:
-  - odgi
+  - odgi=0.8.0
 
