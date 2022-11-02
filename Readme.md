@@ -60,6 +60,11 @@ Running on a small simulated graph is very quick and should only take a few minu
 
 
 
+``` 
+snakemake --use-conda --cores 8 --resources mem_gb=30 -R count_marker_kmers_in_priv_graph data/real/all_predictions_e0.01.txt
+```
+
+
 
 
 

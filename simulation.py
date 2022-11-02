@@ -11,7 +11,7 @@ def random_sequence(n):
     return ''.join(random.choices(nucleotides, k=n))
 
 
-def simulate_gfa(n_variants=100, n_individuals=44, out_file_name="graph.gfa"):
+def simulate_gfa(n_variants=100, n_individuals=44, out_dir="./"):
     # very simple:
     # simulate n SNPs with random sequences inbetween
     # spread individuals out with two haplotypes
@@ -62,7 +62,7 @@ def simulate_gfa(n_variants=100, n_individuals=44, out_file_name="graph.gfa"):
     for path_id in path_ids:
         paths[path_id].append(node_id)
 
-    with open(out_file_name, "w") as f:
+    with open(out_dir + "/graph.gfa", "w") as f:
         for node in nodes:
             f.write("S\t%d\t%s\n" % node)
 
@@ -76,13 +76,12 @@ def simulate_gfa(n_variants=100, n_individuals=44, out_file_name="graph.gfa"):
     print("Sample names:")
     sample_names = ["chm13", "grch38"] + ["individual" + str(i) for i in range(n_individuals)]
     print(",".join(sample_names))
-    with open("sample_names.txt", "w") as f:
+    with open(out_dir + "/sample_names.txt", "w") as f:
         f.write('\n'.join(sample_names))
 
-    print(allele_frequencies)
-    #np.save("marker_nodes.npy", np.array(marker_nodes))
-
+    with open(out_dir + "/sample_names.csv", "w") as f:
+        f.write(",".join(sample_names) + "\n")
 
 if __name__ == "__main__":
-    simulate_gfa(5000, 30, sys.argv[1])
+    simulate_gfa(*sys.argv[1:])
 

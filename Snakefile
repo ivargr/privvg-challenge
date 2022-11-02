@@ -8,6 +8,27 @@ random.seed(1)
 
 configfile: "config.yaml"
 
+def get_sample_names(dataset):
+    if "test" in dataset:
+        return config["test_individual_names"].split(",")
+    else:
+        assert dataset == "real"
+        return config["real_data_individual_names"].split(",")
+
+
+    with open("data/" + dataset + "/sample_names.csv") as f:
+        names = f.read().strip().split(",")
+        print(names)
+        return names
+
+
+def get_path_length_for_odgi(wildcards):
+    if wildcards.dataset == "real":
+        return 10000
+    else:
+        n_variants = int(wildcards.dataset.replace("test", ""))
+        return int(n_variants / 10)
+
 
 rule all:
     input:
@@ -20,6 +41,16 @@ rule all:
         #"data/test/priv_2_marker_kmer_counts.npy",
         #"data/test/marker_kmer_counts.npy",
         "data/test/sample_names.txt"
+    
+    
+rule make_test_graph:
+    output:
+        "data/test{n_variants,\d+}/graph.gfa",
+        "data/test{n_variants,\d+}/sample_names.txt",
+        "data/test{n_variants,\d+}/sample_names.csv"
+    run:
+        from simulation import simulate_gfa
+        simulate_gfa(int(wildcards.n_variants), 44, "data/test" + wildcards.n_variants + "/")
 
 
 rule make_odgi_graph:
@@ -98,10 +129,12 @@ rule get_unique_sample_kmers:
 
 
 def merge_all_unique_kmers_input(wildcards):
-    return ["data/" + wildcards.dataset + "/" + sample_name + ".unique_kmers.npy" for sample_name in config["datasets"][wildcards.dataset]["individuals"].split(",")]
+    #return ["data/" + wildcards.dataset + "/" + sample_name + ".unique_kmers.npy" for sample_name in config["datasets"][wildcards.dataset]["individuals"].split(",")]
+    return ["data/" + wildcards.dataset + "/" + sample_name + ".unique_kmers.npy" for sample_name in get_sample_names(wildcards.dataset)]
 
 def sample_kmers_input(wildcards):
-    return ["data/" + wildcards.dataset + "/" + sample_name + ".kmers.npy" for sample_name in config["datasets"][wildcards.dataset]["individuals"].split(",")]
+    #return ["data/" + wildcards.dataset + "/" + sample_name + ".kmers.npy" for sample_name in config["datasets"][wildcards.dataset]["individuals"].split(",")]
+    return ["data/" + wildcards.dataset + "/" + sample_name + ".kmers.npy" for sample_name in get_sample_names(wildcards.dataset)]
 
 
 rule merge_all_unique_kmers:
@@ -169,7 +202,7 @@ rule get_random_individuals_to_be_removed:
     #    cut -d "#" -f 1 {input} | sort | uniq | grep -v "grch38" | grep -v "chm13" | shuf | head -n 6 > {output}
     #    """
     run:
-        sample_names = config["datasets"][wildcards.dataset]["individuals"].split(",")
+        sample_names = get_sample_names(wildcards.dataset)  # config["datasets"][wildcards.dataset]["individuals"].split(",")
         sample_names.remove("grch38")
         sample_names.remove("chm13")
         random.shuffle(sample_names)
@@ -178,6 +211,9 @@ rule get_random_individuals_to_be_removed:
             f.write("\n".join(sample_names))
 
 
+def get_haplotype_length(wildcards):
+    return get_path_length_for_odgi(wildcards)
+    #return config["datasets"][wildcards.dataset]["sample_path_length"]
 
 rule make_priv_graph:
     output:
@@ -190,13 +226,19 @@ rule make_priv_graph:
         graph="data/{dataset}/graph.og",
     conda:
         "envs/odgi.yml"
+    resources:
+        mem_gb=15
+    threads:
+        4
+    params:
+        haplotype_length=get_haplotype_length
     shell:
         "INDIVIDUAL=$(head -n {wildcards.i} {input.random_individuals} | tail -n 1) && "
-        "target_haplotype_length=500 && "
+        "target_haplotype_length={params.haplotype_length} && "
         """
         cat {input.paths} | grep -v "^$INDIVIDUAL#" > data/{wildcards.dataset}/keep.{wildcards.i}
         odgi paths -i {input.graph} -K data/{wildcards.dataset}/keep.{wildcards.i} -o - \
-          | odgi priv -i - -d 30 -e {wildcards.epsilon} -c 3 -b $target_haplotype_length -t 16 -P -o {output.graph}
+          | odgi priv -i - -d 30 -e {wildcards.epsilon} -c 3 -b $target_haplotype_length -t 4 -P -o {output.graph}
         odgi paths -i {output.graph} -f | bgzip -@ 48 > {output.sequences}
         odgi view -i {output.graph} -g  > {output.gfa}
         """
@@ -205,20 +247,22 @@ rule make_priv_graph:
 
 rule count_marker_kmers_in_priv_graph:
     output:
-        counts="data/{dataset}/priv_{i}_e{epsilon}_marker_kmer_counts.npy"
+        counts="data/{dataset}/priv_{i,\w+}_e{epsilon}_marker_kmer_counts.npy"
     input:
-        sequences="data/{dataset}/{i,\d+}_e{epsilon}.fa.gz",
+        sequences="data/{dataset}/{i,\w+}_e{epsilon}.fa.gz",
         marker_kmers="data/{dataset}/marker_kmers.npy"
     run:
         marker_kmers = np.load(input.marker_kmers)
-        counter = nps.Counter(marker_kmers)
+        counter = nps.Counter(marker_kmers, mod=20000033)
 
-        priv_sequences = bnp.open(input.sequences).read().sequence
-        print("Read priv sequences")
-        priv_kmers = bnp.kmers.fast_hash(bnp.as_encoded_array(priv_sequences, bnp.DNAEncoding), window_size=31).ravel()
-        print("%d kmers in priv graph" % len(priv_kmers))
+        for chunk in bnp.open(input.sequences).read_chunks(100000000):
+            #priv_sequences = bnp.open(input.sequences).read().sequence
+            priv_sequences = chunk.sequence
+            print("Read priv sequences")
+            priv_kmers = bnp.kmers.fast_hash(bnp.as_encoded_array(priv_sequences, bnp.DNAEncoding), window_size=31).ravel()
+            print("%d kmers in priv graph" % len(priv_kmers))
+            counter.count(priv_kmers)
 
-        counter.count(priv_kmers)
         counts = counter[marker_kmers]
 
         np.save(output.counts, counts)
@@ -301,7 +345,7 @@ rule predict_with_kmers:
         priv_counts="data/{dataset}/priv_{i}_e{epsilon}_marker_kmer_counts.npy",
         sample_names="data/{dataset}/sample_names.txt"
     output:
-        prediction="data/{dataset}/prediction_{i,\d+}_e{epsilon}_with_kmers.txt"
+        prediction="data/{dataset}/prediction_{i,\w+}_e{epsilon}_with_kmers.txt"
 
     run:
         sample_names={i: line.strip() for i, line in enumerate(open(input.sample_names).readlines())}
@@ -323,7 +367,8 @@ rule predict_with_kmers:
 
 
 def all_predictions(wildcards):
-    n_individuals = len(config["datasets"][wildcards.dataset]["individuals"].split(","))-2
+    #n_individuals = len(get_sample_names(wildcards.dataset))-2
+    n_individuals = 8
     return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
 
@@ -343,13 +388,15 @@ rule predict_all:
 
         with open(output[0], "w") as f:
             n_correct = 0
+            n_tot = 0
             for truth_individual, predicted in zip(truth, predicted):
+                n_tot += 1
                 if truth_individual == predicted:
                     n_correct += 1
                 f.write("%s,%s\n" % (truth_individual, predicted))
 
-        accuracy = n_correct / len(truth)
-        print("N correct: %d/%d" % (n_correct, len(truth)))
+        accuracy = n_correct / n_tot
+        print("N correct: %d/%d" % (n_correct, n_tot))
 
         with open(output[1], "w") as f:
             f.write("%.5f\n"  % accuracy)
@@ -389,3 +436,21 @@ rule get_priv_node_counts_from_alignments:
             all_nodes.extend(nodes)
 
         np.save(output.counts, np.bincount(np.array(all_nodes).astype(np.int64)))
+
+
+rule get_challenge_dataset:
+    output:
+        "data/real/challenge{i,\d+}_e0.01.fa.gz"
+    shell:
+        "wget -O {output} --show-progress https://f004.backblazeb2.com/file/pangenome/privvg/{wildcards.i}.fa.gz"
+
+
+rule challenge_solution:
+    input:
+        "data/real/prediction_challenge0_e0.01_with_kmers.txt",
+        "data/real/prediction_challenge1_e0.01_with_kmers.txt",
+        "data/real/prediction_challenge2_e0.01_with_kmers.txt",
+    output:
+        solution="challenge_solution.txt"
+    shell:
+        "cat {input} > {output}"
