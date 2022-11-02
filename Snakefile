@@ -360,8 +360,8 @@ rule predict_with_kmers:
 
 
 def all_predictions(wildcards):
-    #n_individuals = len(get_sample_names(wildcards.dataset))-2
-    n_individuals = 10
+    n_individuals = len(get_sample_names(wildcards.dataset))-2
+    #n_individuals = 10
     return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
 
