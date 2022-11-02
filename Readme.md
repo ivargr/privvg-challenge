@@ -9,31 +9,29 @@ We believe the following is the solution to the challenge:
 1.fa.gz:
 ...
 ```
+## Overview of our solution
+* Assuming we have an original non-private graph `A` and an epsilon-differentially private graph `B` which is created by removing an unknown individual `i` from `A`. Both graphs contain paths (in the challenge we only observe the sequences of paths in B). 
+* We hypothesise that if something is wrong with the privvg-implementation, then for nodes covered by the individual `i` in `A`, we would observe lower than "expected" coverage of paths over these nodes in `B`. What is expected is a bit unclear due to the exponential mechanism, but for simplicity we could look at nodes with zero coverage (no paths) in `B`. If an individual is removed, then for nodes in `A` that the indivdual has, and that few other individual have, we would more often (than if the individual was not removed) see zero coverage on that node in `B`.
+* We don't have access to the graph `B`, but we have access to the error-free sampled path sequences. This means that we should be able to quite easily reconstruct `B` by mapping these path sequences to `A`.
 
-## Overview of solution
-* We believe the competion creators might be wrong in their assumption about the "composition theorem", i.e. assuming that if there is epsilon-differential privacy at a single variant, then privacy is also preserved when querying multiple variants (more about this in the last section).
-* If our assumption is true, then, given enough variants in the graph, there should be enough information leakage to infer wich sample is missing from each provided sample.
-* An example of information leakage would be that a node from the original chr 6 graph is supported by fewer than expected haplotypes sampled from a differential private graph. This indicates that haplotypes supporting the node in the chr 6 graph might have been removed. 
-* We don't have access to the nodes and hapotype paths in the differential private graph, but since the haplotypes are sampled without errors, we can quite easily map these sequences back to the original chr 6 graph to see which nodes are supported and not supported by haplotypes.
 
 ### Testing whether our idea could work
-To test whether the above hypothesis is true, we simulated a simple graph in GFA format and generated differential-private graphs and sampled haplotypes according to the recipy given in the competition instructions.
+We did some simulations to test whether our approach could work. We simulated a simple graph in GFA format and generated differential-private graphs and sampled haplotypes according to the recipy given in the competition instructions.
 
-We implemented a very simple method for determining haplotypes from the original graph that seems to be missing from the differential private graph. We do this by mapping the sampled haplotype sequence back to the original graph, and look at nodes with zero support (no reads mapped to them). We predict the missing haplotype by choosing the haplotype with most cases of having a node in the original graph that has zero support when mapping reads from the differential private sequences.
+A problem with mapping reads back to `A` to look at node coverage is that mapping 30x reads for multiple individuals at chromosome 6 will take some time (at least some hours, and maybe even a few days). To be able to test things quickly and play around with parameters, we think the above described approach should also work when looking at kmer frequencies instead of node coverage (a bit similar to the approach of [KAGE](https://github.com/ivargr/kage). I.e., instead of looking for nodes with lower than expected coverage, we look at kmers from `A` with lower than expected coverage in the sequences sampled from `B`. 
 
-This simple method gives a 100% prediction accuracy with `epsilon=0.01` on a graph with `5000 variants` with random sequences. The accuracy decreased with fewer nodes, and also with lower accuracy, but appearantly `epsilon=0.01` is far too high even for a small graph like this:
+We use [BioNumpy](https://github.com/bionumpy/bionumpy) to first scan all kmers in the original graph `A`, and pick out "*marker kmers*", which are kmers that occur few times and that few indiviudals have in `A`. We then count how many times these kmers occur in `B`, and ...
 
+On our simulated data, this approach gave a 100% prediction accuracy with `epsilon=0.01` on a graph with `5000 variants` with random sequences. The accuracy decreased with fewer nodes, but 5000 nodes (which is not much) seemed to be enough to break privacy, so something seems to be wrong with the implementation/concept of privvg. 
+
+
+We also experimented with different epsilon-values, but were confused on the role of epsilon here (see notes further down). In general, lower epsilon did not make it more difficult to get correct predictions.
 
 
 
 ### Solving the real case
-The real case is slightly more tricky since mapping the reads back to the original graph takes time. To save some time, and to be able to experiment effectively with different settings (such as changing epsilon), we instead looked at kmers in the original graph and in the differential private samples.
+Before solving the real case, we made a bunch of samples to test on by following the procedure as given in the challenge description, to check the accuracy. Also here, we got a 100% accuracy.
 
-The idea is the same as what presented above:
-* If a sample is removed, we expect to see fewer kmers from this sample in the differential private data than if it is not removed.
-* It is easiest to see such differences if looking at kmers that few individuals have.
-
-We use [BioNumpy](https://github.com/bionumpy/bionumpy) to first scan all kmers in all original samples, and pick out "*marker kmers*", kmers that occur few times and that few indiviudals have.
 
 We then count how many times these kmers occur in each individual in the original graph and in the provided private sample. It would probably be a lot more accurate to map the sequences to the original graph, but just looking at kmers seems to give a 100% accuracy when we simulate differential private graphs from the providedd chromosome 6 graph:
 
@@ -92,8 +90,9 @@ wget ...
 snakemake --use-conda data/test/all_predictions.txt
 ```
 
-
-### A few other notes
+## Some speculation and notes
+* We have a feeling that the competion creators might be wrong in their assumption about the "composition theorem", i.e. assuming that if there is epsilon-differential privacy at a single variant, then privacy is also preserved when querying multiple variants. We don't know the theory here, but according to e.g. [this paper](https://arxiv.org/abs/1311.0776) it seems that the privacy when performing `k` samples in worst case can be `epsilon * k`, which intuitively also makes somewhat sense. Maybe this is why our approach works, but we're not in any way certain here. 
+* We experience that it is more difficult to get correct predictions with larger epsilon. It seems that with large epsilon only major alleles are chosen, which makes sense since the probability-weight of choosing these alleles grows exponentially according to the exponential mechanism. We thus have a feeling that the exponential mechanism does not make so much sense for this problem, since we would rather would want the allele frequencies to be closer to the true allele frequencies with larger epsilon. This could be interesting to discuss further. 
 * In the challenge description, the developers say that `[the sequences sampled from the graph are] less likely to expose private information than the graph`. We believe this assumption might be a bit naive, and that an implementation of differential privacy should first and foremost make sure that the graph satifies differential privacy and not rely on increased privacy by sampling sequences. As long as we have the original graph that the differential private graph has been created from (which we have in our case), then in theory the differential private graph can be reconstructed by mapping the reads to this graph. Mapping these reads should be easy since they are sampled without errors. This is true as long as nodes with zero haplotypes are removed from the differential private graph (which we think they should).
 
 ## Work by

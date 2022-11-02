@@ -3,5 +3,6 @@ channels:
   - bioconda
 dependencies:
   - libgcc-ng
-  - odgi==0.8.1
+  - odgi=0.8.0
   - tabix  
+

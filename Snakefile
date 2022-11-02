@@ -32,15 +32,7 @@ def get_path_length_for_odgi(wildcards):
 
 rule all:
     input:
-        "data/test/marker_kmers.npy",
-        "data/test/marker_kmer_counts.npy",
-        "data/test/priv_1_marker_kmer_counts.npy",
-        "data/test/node_counts.npy",
-        "data/test/priv_1_node_counts.npy",
-        #"data/test/priv_1_marker_kmer_counts.npy",
-        #"data/test/priv_2_marker_kmer_counts.npy",
-        #"data/test/marker_kmer_counts.npy",
-        "data/test/sample_names.txt"
+        "data/test5000/sample_names.txt"
     
     
 rule make_test_graph:
@@ -367,8 +359,8 @@ rule predict_with_kmers:
 
 
 def all_predictions(wildcards):
-    #n_individuals = len(get_sample_names(wildcards.dataset))-2
-    n_individuals = 8
+    n_individuals = len(get_sample_names(wildcards.dataset))-2
+    #n_individuals = 8
     return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
 
@@ -450,6 +442,9 @@ rule challenge_solution:
         "data/real/prediction_challenge0_e0.01_with_kmers.txt",
         "data/real/prediction_challenge1_e0.01_with_kmers.txt",
         "data/real/prediction_challenge2_e0.01_with_kmers.txt",
+        "data/real/prediction_challenge3_e0.01_with_kmers.txt",
+        "data/real/prediction_challenge4_e0.01_with_kmers.txt",
+        "data/real/prediction_challenge5_e0.01_with_kmers.txt",
     output:
         solution="challenge_solution.txt"
     shell:
