@@ -1,6 +1,8 @@
 channels:
+  - conda-forge 
   - bioconda
-
 dependencies:
+  - libgcc-ng
   - odgi=0.8.0
+  - tabix  
 

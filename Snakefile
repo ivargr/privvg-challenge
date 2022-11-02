@@ -97,10 +97,13 @@ rule get_sample_sequence:
         "data/{dataset}/sample_{name}.fa.gz"
     input:
         graph_sequences="data/{dataset}/graph.fa.gz",
+    conda:
+        "envs/samtools.yml"
     shell:
         "samtools faidx {input.graph_sequences} $(grep {wildcards.name}'#' {input.graph_sequences}.fai | cut -f 1)  "
         "| bgzip -@ 24 > {output} && samtools faidx {output}"
 
+    
 
 rule get_sample_kmers:
     output:
@@ -339,23 +342,24 @@ rule predict_with_kmers:
         sample_names="data/{dataset}/sample_names.txt"
     output:
         prediction="data/{dataset}/prediction_{i,\w+}_e{epsilon}_with_kmers.txt"
-
-    run:
-        sample_names={i: line.strip() for i, line in enumerate(open(input.sample_names).readlines())}
-        counts = np.load(input.counts)
-        priv_counts = np.load(input.priv_counts)
-        lower_than_expected = priv_counts == 0
-
-        scores = np.sum((counts >= 1) * lower_than_expected,axis=-1) / np.sum((counts > 0), axis=-1)
-        scores[0] = 0  # never predict chm13
-
-        predicted_individual = sample_names[np.argmax(scores)]
-        print(scores)
-        print(np.argmax(scores))
-        print(sample_names[np.argmax(scores)])
-
-        with open(output.prediction, "w") as f:
-            f.write("%s\n" % predicted_individual)
+    script:
+        "predict.py"
+# 
+#         sample_names={i: line.strip() for i, line in enumerate(open(input.sample_names).readlines())}
+#         counts = np.load(input.counts)
+#         priv_counts = np.load(input.priv_counts)
+#         lower_than_expected = priv_counts == 0
+# 
+#         scores = np.sum((counts >= 1) * lower_than_expected,axis=-1) / np.sum((counts > 0), axis=-1)
+#         scores[0] = 0  # never predict chm13
+# 
+#         predicted_individual = sample_names[np.argmax(scores)]
+#         print(scores)
+#         print(np.argmax(scores))
+#         print(sample_names[np.argmax(scores)])
+# 
+#         with open(output.prediction, "w") as f:
+#             f.write("%s\n" % predicted_individual)
 
 
 
