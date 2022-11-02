@@ -5,6 +5,7 @@ from shared_memory_wrapper import from_file, to_file
 import npstructures as nps
 np.random.seed(1)
 random.seed(1)
+import matplotlib.pyplot as plt
 
 configfile: "config.yaml"
 
@@ -365,7 +366,7 @@ rule predict_with_kmers:
 
 def all_predictions(wildcards):
     n_individuals = len(get_sample_names(wildcards.dataset))-2
-    #n_individuals = 10
+    #n_individuals = 20
     return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
 
@@ -454,3 +455,45 @@ rule challenge_solution:
         solution="challenge_solution.txt"
     shell:
         "cat {input} > {output}"
+
+
+rule plot_accuracy_across_n_variants:
+    input:
+        expand("data/test{n_variants}/accuracy_e{{epsilon}}.txt", n_variants=[500, 1000, 2500, 5000, 7500, 10000, 12500, 15000, 20000, 30000])
+    output:
+        "plot_across_n_variants_e{epsilon}.png"
+    run:
+        n_variants = []
+        accuracies = []
+        for file_name in input:
+            accuracies.append(float(open(file_name).read().strip()))
+            n_variants.append(int(file_name.split("/")[1].replace("test", "")))
+
+        plt.plot(n_variants, accuracies)
+        plt.ylabel("Accuracy")
+        plt.xlabel("Number of variants")
+        plt.title("Accuracy of predicting which sample has been removed, epsilon = " + wildcards.epsilon)
+        plt.savefig(output[0])
+
+
+rule plot_accuracy_across_epsilons:
+    input:
+        expand("data/test{{n_variants}}/accuracy_e{epsilon}.txt", epsilon=[0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10])
+        #expand("data/test{{n_variants}}/accuracy_e{epsilon}.txt", epsilon=[0.0001, 0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1])
+    output:
+        "plot_across_epsilon_{n_variants}variants.png"
+    run:
+        epsilons = []
+        accuracies = []
+        for file_name in input:
+            accuracies.append(float(open(file_name).read().strip()))
+            epsilons.append(float(file_name.split("accuracy_e")[1].replace(".txt", "")))
+
+        plt.plot(epsilons, accuracies)
+        print(epsilons, accuracies)
+        plt.title("Accuracy on varying epsilons, number of variants = " + wildcards.n_variants)
+        plt.xlabel("Epsilon (log-scale)")
+        plt.ylabel("Accuracy")
+        plt.xscale("log")
+        plt.savefig(output[0])
+
