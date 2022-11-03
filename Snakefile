@@ -27,9 +27,7 @@ def get_path_length_for_odgi(wildcards):
     if wildcards.dataset == "real":
         return 10000
     else:
-        n_variants = int(wildcards.dataset.replace("test", ""))
-        return 500
-        return min(250, int(n_variants / 10))  # no more than 1000 to be safe, odgi can crash if too long
+        return 500 # too high can make odgi priv run forever on the small test graphs
 
 
 rule all:
@@ -69,17 +67,6 @@ rule get_paths:
         "odgi paths -i {input} -L > {output}"
 
 
-"""
-rule get_sample_names:
-    output:
-        "data/{dataset}/sample_names.txt"
-    input:
-        "data/{dataset}/paths.txt"
-    shell:
-        "cut -d# -f 1 {input} | sort | uniq > {output}"
-"""
-
-
 rule get_graph_paths_as_fasta:
     output:
         "data/{dataset}/graph.fa.gz"
@@ -89,7 +76,7 @@ rule get_graph_paths_as_fasta:
         "envs/odgi.yml"
     shell:
         """
-        odgi paths -i {input} -f | bgzip -@ 24 > {output} && samtools faidx {output} 
+        odgi paths -i {input} -f | bgzip -@ 12 > {output} && samtools faidx {output} 
         """
     
 
@@ -194,10 +181,6 @@ rule get_sample_counts_for_marker_kmers:
 rule get_random_individuals_to_be_removed:
     output:
         random_individuals="data/{dataset}/random_individuals.txt"
-    #shell:
-    #    """
-    #    cut -d "#" -f 1 {input} | sort | uniq | grep -v "grch38" | grep -v "chm13" | shuf | head -n 6 > {output}
-    #    """
     run:
         sample_names = get_sample_names(wildcards.dataset)  # config["datasets"][wildcards.dataset]["individuals"].split(",")
         sample_names.remove("grch38")
@@ -210,7 +193,7 @@ rule get_random_individuals_to_be_removed:
 
 def get_haplotype_length(wildcards):
     return get_path_length_for_odgi(wildcards)
-    #return config["datasets"][wildcards.dataset]["sample_path_length"]
+
 
 rule make_priv_graph:
     output:
@@ -253,15 +236,13 @@ rule count_marker_kmers_in_priv_graph:
         counter = nps.Counter(marker_kmers, mod=20000033)
 
         for chunk in bnp.open(input.sequences).read_chunks(100000000):
-            #priv_sequences = bnp.open(input.sequences).read().sequence
             priv_sequences = chunk.sequence
             print("Read priv sequences")
             priv_kmers = bnp.kmers.fast_hash(bnp.as_encoded_array(priv_sequences, bnp.DNAEncoding), window_size=31).ravel()
-            print("%d kmers in priv graph" % len(priv_kmers))
+            print("%d kmers processed" % len(priv_kmers))
             counter.count(priv_kmers)
 
         counts = counter[marker_kmers]
-
         np.save(output.counts, counts)
 
 
@@ -345,22 +326,6 @@ rule predict_with_kmers:
         prediction="data/{dataset}/prediction_{i,\w+}_e{epsilon}_with_kmers.txt"
     script:
         "predict.py"
-# 
-#         sample_names={i: line.strip() for i, line in enumerate(open(input.sample_names).readlines())}
-#         counts = np.load(input.counts)
-#         priv_counts = np.load(input.priv_counts)
-#         lower_than_expected = priv_counts == 0
-# 
-#         scores = np.sum((counts >= 1) * lower_than_expected,axis=-1) / np.sum((counts > 0), axis=-1)
-#         scores[0] = 0  # never predict chm13
-# 
-#         predicted_individual = sample_names[np.argmax(scores)]
-#         print(scores)
-#         print(np.argmax(scores))
-#         print(sample_names[np.argmax(scores)])
-# 
-#         with open(output.prediction, "w") as f:
-#             f.write("%s\n" % predicted_individual)
 
 
 
