@@ -70,33 +70,6 @@ snakemake --use-conda --cores 8 --resources mem_gb=30 -R count_marker_kmers_in_p
 ```
 
 
-
-
-
-* We believe there might be a problem in the implementation/interpretation of the "Composition theorem". According to [the description here](https://privvg.github.io/2022/06/13/Differential-Privacy.html), the privvg-developers say that:
-```
-It suffice to say that when one makes differentially private queries in succession, the result also preserves privacy.
-```
-We are no experts on differential privacy, but our intuition tells us that if there is epsilon-differential privacy at each single variant, this means that there should be less privacy and more information when looking at multiple variants. From our understanding, the priacy might even be as bad as `k * epsilon` for k variants ()
-
-* We believe there might be an error/mistake in the implementation in that there is only epsilon-differential privacy at each single variant, but when variants are preserved  
-
-## Running on simulated data
-``` 
-
-```
-
-
-## How to reproduce
-###
-```
-# get data sets
-wget ...
-
-# run the prediction
-snakemake --use-conda data/test/all_predictions.txt
-```
-
 ## Some speculation and notes
 * We have a feeling that the competion creators might be wrong in their assumption about the "composition theorem", i.e. assuming that if there is epsilon-differential privacy at a single variant, then privacy is also preserved when querying multiple variants. We don't know the theory here, but according to e.g. [this paper](https://arxiv.org/abs/1311.0776) it seems that the privacy when performing `k` samples in worst case can be `epsilon * k`, which intuitively also makes somewhat sense. Maybe this is why our approach works, but we're not in any way certain here. However, we do observe that it gets easier to predict as there are more variants in the graph, so the privacy is not independent on the number of variants, as is [indicated on the privvg blog](https://privvg.github.io/2022/06/13/Differential-Privacy.html): `It suffice to say that when one makes differentially private queries in succession, the result also preserves privacy`.
 * We experience that it is more difficult to get correct predictions with larger epsilon. It seems that with a large epsilon only major alleles are chosen, which makes sense since the probability-weight of choosing these alleles grows exponentially according to the exponential mechanism. We thus have a feeling that the exponential mechanism does not make so much sense for this problem, since we would rather  want the allele frequencies to be closer to the true allele frequencies with larger epsilon. All examples we can find using the exponential mecanism are focused on cases where one would prefer to get the element with the highest score (utility), but this is not the case here we believe. Maybe the exponential mechanism is a wrong approach to take for differential privacy on pangenomes? This could be interesting to discuss further. 
