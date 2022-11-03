@@ -2,13 +2,7 @@
 
 This is an attempt at solving the [Human chromosome 6 privacy callenge](https://privvg.github.io/2022/09/30/human-chromosome-6-privacy-challenge.html).
 
-We believe the following is the solution to the challenge:
 
-```
-0.fa.gz: 
-1.fa.gz:
-...
-```
 ## Overview of our solution
 * Assuming we have an original non-private graph `A` and an epsilon-differentially private graph `B` which is created after removing an unknown individual `i` from `A`. Both graphs contain paths (in the challenge we only observe the sequences of the paths of B). 
 * We hypothesise that if something is wrong with the privvg-implementation, then for nodes covered by the individual `i` in `A`, we should be able to observe lower than expected coverage of paths over these nodes in `B`. 
@@ -23,16 +17,27 @@ A problem with mapping reads back to `A` to look at node coverage is that mappin
 
 We use [BioNumpy](https://github.com/bionumpy/bionumpy) to first scan all kmers in the original graph `A`, and pick out "*marker kmers*", which are kmers that occur few times and that few indiviudals have in `A`. We then count how many times these kmers occur in the path sequences in `B` and look for individuals from `A` with lower counts in `B` than one should expect if they were still in the graph.
 
-On simulated data, this approach gave a 100% prediction accuracy with `epsilon=0.01` on a graph with *10 000 variants* and *44 individuals* (the real chromosome 6 graph has more than a million variants) on a "leave-one-out" experiment where we iteratively removed one of 44 individuals from the graph. The accuracy decreased with fewer variants, but around 10 000 seemed to be enough to correctly predict which individual had been removed in every case, meaning privacy has been breached (so something seems to be wrong with the implementation/concept of privvg).
+On simulated data, this approach gave a 100% prediction accuracy with `epsilon=0.01` on a graph with *12 500 variants* and *44 individuals* (the real chromosome 6 graph has the same number of individuals, but more than a million variants) on a "leave-one-out" experiment where we iteratively removed one of 44 individuals from the graph. The accuracy decreased with fewer variants, but around 12 000 seemed to be enough to correctly predict which individual had been removed in every case, meaning privacy has been breached. So something seems to be wrong with the implementation/concept of privvg.
 
 We played around a bit with how many variants we needed. Note that this simulated data is a bit naive in that sequences are completely random, so most kmers are probably unique. Also, there are probably no "strange" individuals with e.g. mostly rare variants or no rare variants.
 
 ![Accuracy vs number of variants](plot_across_n_variants_e0.01.png "Accuracy as a function of number of variants")
 
+The plot can be reproduced with:
+```bash
+snakemake --cores 8 --resources mem_gb=30 --use-conda -R plot_across_n_variants_e0.01.png
+```
+
 
 We also experimented with different epsilon-values, but we were confused on the role of epsilon here (see notes at the end). In general, lower epsilon did not make it more difficult to get correct predictions, but a higher epsilon made things worse (likely because a high epsilons means that only the most frequent alleles are sampled).
 
-![Accuracy vs epsilon](plot_across_epsilon_10000variants.png)
+![Accuracy vs epsilon](plot_across_epsilon_12500variants.png)
+
+The plot can be reproduced with:
+```bash
+snakemake --cores 8 --resources mem_gb=30 --use-conda plot_across_epsilon_12500variants.png
+```
+
 
 ### Solving the real case
 Since the approach describe above works so well on small simulated graphs, we think the same approach should work on the much larger chromosome 6 graph.
