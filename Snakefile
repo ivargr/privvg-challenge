@@ -226,7 +226,7 @@ rule make_priv_graph:
     resources:
         mem_gb=15
     threads:
-        4
+        2
     params:
         haplotype_length=get_haplotype_length
     shell:
@@ -235,7 +235,7 @@ rule make_priv_graph:
         """
         cat {input.paths} | grep -v "^$INDIVIDUAL#" > data/{wildcards.dataset}/keep.{wildcards.i}
         odgi paths -i {input.graph} -K data/{wildcards.dataset}/keep.{wildcards.i} -o - \
-          | odgi priv -i - -d 30 -e {wildcards.epsilon} -c 3 -b $target_haplotype_length -t 4 -P -o {output.graph}
+          | odgi priv -i - -d 30 -e {wildcards.epsilon} -c 3 -b $target_haplotype_length -t 2 -P -o {output.graph}
         odgi paths -i {output.graph} -f | bgzip -@ 48 > {output.sequences}
         odgi view -i {output.graph} -g  > {output.gfa}
         """
@@ -366,6 +366,8 @@ rule predict_with_kmers:
 
 def all_predictions(wildcards):
     n_individuals = len(get_sample_names(wildcards.dataset))-2
+    if wildcards.dataset == "real":
+        n_individuals = 30
     #n_individuals = 20
     return ["data/" + wildcards.dataset + "/prediction_" + str(i) + "_e" + wildcards.epsilon + "_with_kmers.txt"
             for i in range(1, n_individuals+1)]
