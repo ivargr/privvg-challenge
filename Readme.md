@@ -50,7 +50,7 @@ snakemake --cores 8 --resources mem_gb=30 --use-conda -R plot_across_n_variants_
 ```
 
 
-We also experimented with different epsilon-values, but we were confused on the role of epsilon here (see notes at the end). In general, lower epsilon did not make it more difficult to get correct predictions, but a higher epsilon made things worse (likely because a high epsilons means that only the most frequent alleles are sampled).
+We also experimented with different epsilon-values, but we were confused on the role of epsilon here. In general, lower epsilon did not make it more difficult to get correct predictions, but a higher epsilon made things worse (likely because a high epsilons means that only the most frequent alleles are sampled).
 
 ![Accuracy vs epsilon](plot_across_epsilon_12500variants.png)
 
