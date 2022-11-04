@@ -1,4 +1,4 @@
-# Human Chromostome 6 privacy challenge, attempt at solution
+# Human Chromosome 6 privacy challenge, attempt at solution
 
 This is an attempt at solving the [Human chromosome 6 privacy callenge](https://privvg.github.io/2022/09/30/human-chromosome-6-privacy-challenge.html).
 
@@ -11,8 +11,6 @@ We believe the following is the solution to the challenge:
 3.fa.gz: HG02109 has been removed
 4.fa.gz: HG02572 has been removed
 5.fa.gz: HG03540 has been removed
-
-...
 ```
 
 The above predictions can be reproduced by cloning this repository and running the snakemake pipeline:
