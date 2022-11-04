@@ -5,8 +5,13 @@ This is an attempt at solving the [Human chromosome 6 privacy callenge](https://
 We believe the following is the solution to the challenge:
 
 ```
-0.fa.gz: 
-1.fa.gz: 
+0.fa.gz: No individual has been removed
+1.fa.gz: HG01978 has been removed
+2.fa.gz: HG01891 has been removed
+3.fa.gz: HG02109 has been removed
+4.fa.gz: HG02572 has been removed
+5.fa.gz: HG03540 has been removed
+
 ...
 ```
 

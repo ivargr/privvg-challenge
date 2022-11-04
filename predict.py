@@ -16,7 +16,7 @@ def predict_index(counts, priv_counts):
     scores = np.sum(counts * lower_than_expected, axis=-1) / np.sum(counts, axis=-1)
     scores[0] = 0  # never predict chm13
     print(scores)
-    return np.argmax(scores)
+    return np.argmax(scores), scores
 
 
 def new_predict_index(counts, priv_counts):
@@ -30,7 +30,7 @@ def new_predict_index(counts, priv_counts):
     scores = np.sum((counts>0) * zero_observed, axis=-1) / expected_zeros
     scores[[0, 1]] = 0
     print(scores)
-    return np.argmax(scores)
+    return np.argmax(scores), scores
 
 def estimate_privacy_rate_per_count(counts, priv_counts):
     total_counts = np.sum(counts, axis=0)
@@ -104,17 +104,23 @@ sample_names, counts, priv_counts = func()
 counts = counts.astype(int)
 priv_counts = priv_counts.astype(int)
 # i = predict_index(counts, priv_counts)
-i = new_predict_index(counts, priv_counts)
+i, scores = new_predict_index(counts, priv_counts)
 print(i)
 print(sample_names[i])
 #i = predict_index(counts, priv_counts)
 #print(i)
 predicted_individual = sample_names[i]
+print("Highest score:", np.max(scores), " at index ", np.argmax(scores))
+if np.max(scores) < 1.15 and snakemake.wildcards.dataset == "real":
+    print("Highest scores is quite low. Predicting no individual has been removed")
+    predicted_individual = "No individual"
 # print(predicted_individual)
 
 try:
     snakemake
     with open(snakemake.output.prediction, "w") as f:
         f.write("%s\n" % predicted_individual)
+
+    np.save(snakemake.output.prediction_scores, scores)
 except:
     pass

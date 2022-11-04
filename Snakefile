@@ -323,7 +323,8 @@ rule predict_with_kmers:
         priv_counts="data/{dataset}/priv_{i}_e{epsilon}_marker_kmer_counts.npy",
         sample_names="data/{dataset}/sample_names.txt"
     output:
-        prediction="data/{dataset}/prediction_{i,\w+}_e{epsilon}_with_kmers.txt"
+        prediction="data/{dataset}/prediction_{i,\w+}_e{epsilon}_with_kmers.txt",
+        prediction_scores="data/{dataset}/prediction_{i,\w+}_e{epsilon}_with_kmers_scores.npy",
     script:
         "predict.py"
 
