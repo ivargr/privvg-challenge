@@ -13,8 +13,13 @@ We believe the following is the solution to the challenge:
 5.fa.gz: HG03540 has been removed
 ```
 
+### Reproducing
 The above predictions can be reproduced by cloning this repository and running the snakemake pipeline:
 ```bash
+# first install python dependencies (these are not automatically installed through conda)
+python3 -m pip install requirents.txt
+
+# Odgi and other tools required will be automatically installed through conda when you run the snakemake pipeline:
 snakemake --cores 8 --resources mem_gb=30 --use-conda challenge_solution.txt
 ```
 The above command takes 2-3 hours to run and requires at least 16 GBs of RAM. Below is an explanation of how we attempted to solve the challenge, and we also show some examples with smaller simulated data sets that more easily can be re-run.

@@ -1,0 +1,6 @@
+numpy
+bionumpy==0.2.2
+npstructures==0.2.3
+shared_memory_wrapper==0.0.22
+matplotlib
+typer
