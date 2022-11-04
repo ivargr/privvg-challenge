@@ -65,6 +65,10 @@ See the Snakemake command at the beginning.
 
 It takes a few hours or so to scan and find marker kmers in the original chromosome 6 graph. The hashtable we use for counting kmers is a bit memory demanding, so one should ideally have around 30GB of memory available. Try running with fewer cores if you run out of memory, and more cores to make it faster if you have enough memory available.
 
+To run a simulated experiment on a graph with X nodes, simply replace X below. Setting X to 12500 should result in a fairly quick run:
+```
+snakemake --cores 8 --resources mem_gb=30 --use-conda data/testX/all_predictions_e0.01.txt
+```
 
 ## Some speculation and notes
 * We have a feeling that the competion creators might be wrong in their assumption about the "composition theorem", i.e. assuming that if there is epsilon-differential privacy at a single variant, then privacy is also preserved when querying multiple variants. We don't know the theory here, but according to e.g. [this paper](https://arxiv.org/abs/1311.0776) it seems that the privacy when performing `k` queries (on `k` different variants) in worst case can be `epsilon * k`, which intuitively also makes somewhat sense. Maybe this is why our approach works, but we're not in any way certain here. However, we do observe that it gets easier to predict as there are more variants in the graph, so the privacy is not independent on the number of variants, as is [indicated on the privvg blog](https://privvg.github.io/2022/06/13/Differential-Privacy.html): `It suffice to say that when one makes differentially private queries in succession, the result also preserves privacy`.
