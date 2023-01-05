@@ -18,8 +18,8 @@ def get_sample_names():
 def get_kmers(sequence_chunk):
     sequences = sequence_chunk.sequence
     # hack, set all Ns to 0 to be able to hash
-    sequences._data[sequences._data == "N"] = "A"
-    kmers = bnp.kmers.fast_hash(bnp.as_encoded_array(sequences, bnp.DNAEncoding), 31).ravel()
+    sequences._RaggedBase__data[sequences._RaggedBase__data == "N"] = "A"
+    kmers = bnp.get_kmers(bnp.as_encoded_array(sequences, bnp.DNAEncoding), 31).raw().ravel()
     return kmers
 
 

@@ -238,7 +238,7 @@ rule count_marker_kmers_in_priv_graph:
         for chunk in bnp.open(input.sequences).read_chunks(100000000):
             priv_sequences = chunk.sequence
             print("Read priv sequences")
-            priv_kmers = bnp.kmers.fast_hash(bnp.as_encoded_array(priv_sequences, bnp.DNAEncoding), window_size=31).ravel()
+            priv_kmers = bnp.get_kmers(bnp.as_encoded_array(priv_sequences, bnp.DNAEncoding), 31).raw().ravel()
             print("%d kmers processed" % len(priv_kmers))
             counter.count(priv_kmers)
 
